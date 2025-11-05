@@ -18,8 +18,12 @@ public class User {
 
     private String email;
 
+    // Add this field
+    private double cashBalance = 10000.0; // starting balance
 
 
+    public double getCashBalance() { return cashBalance; }
+    public void setCashBalance(double cashBalance) { this.cashBalance = cashBalance; }
     // ✅ Constructors
     public User() {}
 

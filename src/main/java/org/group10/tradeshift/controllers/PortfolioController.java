@@ -1,43 +1,36 @@
-package org.group10.tradeshift.controller;
+package org.group10.tradeshift.controllers;
 
-import org.group10.tradeshift.model.Transaction;
-import org.group10.tradeshift.service.TradingService;
+import lombok.RequiredArgsConstructor;
+import org.group10.tradeshift.entities.Portfolio;
+import org.group10.tradeshift.entities.Transaction;
+import org.group10.tradeshift.services.PortfolioService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
-// OrderRequest DTO: class with userId, symbol, quantity
-class OrderRequest {
-    private Long userId;
-    private String symbol;
-    private Double quantity;
-    // getters/setters
-}
-
 @RestController
 @RequestMapping("/api/portfolio")
+@RequiredArgsConstructor  // Lombok
 public class PortfolioController {
-    @Autowired private PortfolioService portfolioService;
+
+    private final PortfolioService portfolioService;  // INJECT
 
     @PostMapping("/buy")
     public ResponseEntity<Transaction> buyAsset(@RequestBody OrderRequest order, Authentication auth) {
-        // Get userId from JWT/auth
         Long userId = getUserIdFromAuth(auth);
-        // Fetch current price (simulate or from market service)
-        Double price = 150.0;  // Placeholder
-        Transaction tx = tradingService.executeBuyOrder(userId, order.getSymbol(), order.getQuantity(), price);
+        Double price = 150.0;  // placeholder
+        Transaction tx = portfolioService.executeBuyOrder(userId, order.getSymbol(), (double)order.getQuantity(), price);
         return ResponseEntity.ok(tx);
     }
 
     private Long getUserIdFromAuth(Authentication auth) {
-        // Impl: Extract from JWT
-        return 1L;  // Placeholder
+        return 1L; // TODO: extract from JWT
     }
 
     @GetMapping
     public ResponseEntity<Portfolio> getCurrentPortfolio(Authentication auth) {
-        Long userId = getUserIdFromAuth(auth);  // From JWT
+        Long userId = getUserIdFromAuth(auth);
         Portfolio portfolio = portfolioService.getPortfolio(userId);
         return ResponseEntity.ok(portfolio);
     }

@@ -1,74 +1,41 @@
+package org.group10.tradeshift.entities;
 
-//updating this also at the same place where all the tables are present
+import jakarta.persistence.*;
+import lombok.*;
+import java.util.Date;
+
 @Entity
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@ToString
+@Table(name = "transactions")
 public class Transaction {
 
-    private Double price;
-    private String type;
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
     private String symbol;
     private Double quantity;
+    private Double price;
+    private String type; // "BUY" or "SELL"
 
-    private User user; //User represents the User entity
-//
-    // For P/L: Add totalCost for the trade
-    private Double totalCost;
+    @Temporal(TemporalType.TIMESTAMP)
+    private Date timestamp;
 
-    // Constructors/getters/setters...
+    @ManyToOne
+    @JoinColumn(name = "user_id")
+    private User user;
+
+    // CONSTRUCTOR FOR executeBuyOrder()
     public Transaction(String symbol, Double quantity, Double price, String type, User user) {
         this.symbol = symbol;
         this.quantity = quantity;
         this.price = price;
         this.type = type;
         this.user = user;
-        this.totalCost = quantity * price;
+        this.timestamp = new Date(); // auto-set current time
     }
-
-    public Double getQuantity() {
-        return quantity;
-    }
-
-    public void setQuantity(Double quantity) {
-        this.quantity = quantity;
-    }
-
-    public Double getPrice() {
-        return price;
-    }
-
-    public void setPrice(Double price) {
-        this.price = price;
-    }
-
-    public User getUser() {
-        return user;
-    }
-
-    public void setUser(User user) {
-        this.user = user;
-    }
-
-    public String getType() {
-        return type;
-    }
-
-    public void setType(String type) {
-        this.type = type;
-    }
-
-    public Double getTotalCost() {
-        return totalCost;
-    }
-
-    public void setTotalCost(Double totalCost) {
-        this.totalCost = totalCost;
-    }
-
-    public String getSymbol() {
-        return symbol;
-    }
-
-    public void setSymbol(String symbol) {
-        this.symbol = symbol;
-    }
-    // ... getters/setters
 }

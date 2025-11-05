@@ -9,6 +9,7 @@ import org.springframework.stereotype.Component;
 @AllArgsConstructor
 @NoArgsConstructor
 @ToString
+@Data
 @Builder
 public class JwtResponse {
     private String jwtToken;

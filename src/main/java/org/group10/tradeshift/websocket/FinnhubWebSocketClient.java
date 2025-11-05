@@ -1,65 +1,90 @@
-//package org.group10.tradeshift.websocket;
-//
-//import com.fasterxml.jackson.databind.ObjectMapper;
-//import org.springframework.beans.factory.annotation.Autowired;
-//import org.springframework.beans.factory.annotation.Value;
-//import org.springframework.messaging.simp.SimpMessagingTemplate;
-//import org.springframework.stereotype.Component;
-//import org.springframework.web.socket.client.standard.StandardWebSocketClient;
-//import org.springframework.web.socket.handler.TextWebSocketHandler;
-//import org.springframework.web.socket.WebSocketSession;
-//
-//import javax.annotation.PostConstruct;
-//import java.util.HashSet;
-//import java.util.Set;
-//
-//@Component
-//public class FinnhubWebSocketClient extends TextWebSocketHandler {
-//    @Autowired private SimpMessagingTemplate template;  // Our broadcaster
-//    @Value("${finnhub.ws-url}") private String wsUrl;
-//    @Value("${finnhub.api-key}") private String apiKey;
-//
-//    private WebSocketSession session;
-//    private final Set<String> subscribedSymbols = new HashSet<>();  // Track active subs
-//    private final ObjectMapper mapper = new ObjectMapper();
-//
-//    @PostConstruct
-//    public void connect() {
-//        StandardWebSocketClient client = new StandardWebSocketClient();
-//        client.doHandshake(this, wsUrl + "?token=" + apiKey).addCallback(
-//                result -> { session = result.getResponse().getSession(); /* Subscribe to defaults */ subscribe("AAPL"); },
-//                ex -> { /* Reconnect logic */ ex.printStackTrace(); }
-//        );
-//    }
-//
-//    @Override
-//    protected void handleTextMessage(WebSocketSession session, org.springframework.web.socket.TextMessage message) throws Exception {
-//        // Parse Finnhub message: e.g., {"type":"trade","data":[{"s":"AAPL","p":150.25,"t":1730300000,"v":100}]}
-//        Map<String, Object> payload = mapper.readValue(message.getPayload(), Map.class);
-//        if ("trade".equals(payload.get("type"))) {  // Or "quote" for bid/ask
-//            List<Map<String, Object>> trades = (List) payload.get("data");
-//            trades.forEach(trade -> {
-//                String symbol = (String) trade.get("s");
-//                Double price = (Double) trade.get("p");
-//                // Broadcast: {symbol: "AAPL", price: 150.25, timestamp: ...}
-//                template.convertAndSend("/topic/prices", Map.of("symbol", symbol, "price", price));
-//            });
-//            @Autowired private PortfolioService portfolioService;
-//            portfolioService.recalculateOnPriceChange(symbol, price);
-//        }
-//    }
-//
-//    // Called by TradingService or on portfolio load
-//    public void subscribe(String symbol) {
-//        if (!subscribedSymbols.contains(symbol) && session != null && session.isOpen()) {
-//            Map<String, Object> subMsg = Map.of("type", "subscribe", "symbol", symbol);
-//            session.sendMessage(new org.springframework.web.socket.TextMessage(mapper.writeValueAsString(subMsg)));
-//            subscribedSymbols.add(symbol);
-//        }
-//    }
-//
-//    public void unsubscribe(String symbol) {
-//        // Similar: {"type":"unsubscribe","symbol":"AAPL"}
-//        // ...
-//    }
-//}
+package org.group10.tradeshift.websocket;
+
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.annotation.PostConstruct;
+import lombok.RequiredArgsConstructor;
+import org.group10.tradeshift.services.PortfolioService;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Component;
+import org.springframework.web.socket.CloseStatus;
+import org.springframework.web.socket.TextMessage;
+import org.springframework.web.socket.WebSocketSession;
+import org.springframework.web.socket.client.standard.StandardWebSocketClient;
+import org.springframework.web.socket.handler.TextWebSocketHandler;
+
+import java.util.List;
+import java.util.Map;
+
+
+
+@Component
+@RequiredArgsConstructor
+public class FinnhubWebSocketClient extends TextWebSocketHandler {
+
+    private final PortfolioService portfolioService;
+    private final ObjectMapper objectMapper = new ObjectMapper();
+    private WebSocketSession session;
+
+    @Value("${finnhub.api-key}")
+    private String finnhubApiKey;
+
+    @PostConstruct
+    public void connect() {
+        String uriString = "wss://ws.finnhub.io?token=" + finnhubApiKey;
+        StandardWebSocketClient client = new StandardWebSocketClient();
+        client.execute(this, null, java.net.URI.create(uriString))
+                .thenAccept(sess -> this.session = sess)
+                .exceptionally(ex -> {
+                    System.err.println("WebSocket error: " + ex.getMessage());
+                    return null;
+                });
+    }
+
+    @Override
+    public void afterConnectionEstablished(WebSocketSession session) {
+        this.session = session;
+        sendMessage("{\"type\":\"subscribe\",\"symbol\":\"AAPL\"}");
+    }
+
+    @Override
+    protected void handleTextMessage(WebSocketSession session, TextMessage message) throws Exception {
+        String payload = message.getPayload();
+        JsonNode root = objectMapper.readTree(payload);
+        String type = root.path("type").asText();
+
+        if ("trade".equals(type)) {
+            List<Map<String, Object>> data = objectMapper.readValue(
+                    root.path("data").traverse(),
+                    new TypeReference<>() {}
+            );
+            for (Map<String, Object> trade : data) {
+                String symbol = (String) trade.get("s");
+                double price = ((Number) trade.get("p")).doubleValue();
+
+                portfolioService.updateStockPrice(symbol, price);
+            }
+        }
+    }
+
+    private void sendMessage(String msg) {
+        if (session != null && session.isOpen()) {
+            try {
+                session.sendMessage(new TextMessage(msg));
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
+    @Override
+    public void afterConnectionClosed(WebSocketSession session, CloseStatus status) {
+        this.session = null;
+    }
+
+
+    public void subscribe(String symbol) {
+        sendMessage("{\"type\":\"subscribe\",\"symbol\":\"" + symbol + "\"}");
+    }
+}

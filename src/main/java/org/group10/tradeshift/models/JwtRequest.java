@@ -9,6 +9,7 @@ import org.springframework.stereotype.Component;
 @ToString
 @NoArgsConstructor
 @AllArgsConstructor
+@Data
 public class JwtRequest {
     private String email;
     private String password;

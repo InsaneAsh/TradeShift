@@ -1,6 +1,10 @@
-//add this file in where all other tables are there like user table
+package org.group10.tradeshift.entities;
 
 
+import jakarta.persistence.Entity;
+import jakarta.persistence.*;
+import java.util.List;
+import java.util.Map;
 
 @Entity
 public class Portfolio {
@@ -44,4 +48,17 @@ public class Portfolio {
     public void setTotalValue(Double totalValue) {
         this.totalValue = totalValue;
     }
+    // Add these fields
+    private double realizedPl = 0.0;
+    private int numAssets = 0;
+
+
+
+    public double getRealizedPl() { return realizedPl; }
+    public void setRealizedPl(double realizedPl) { this.realizedPl = realizedPl; }
+
+    public int getNumAssets() { return numAssets; }
+    public void setNumAssets(int numAssets) { this.numAssets = numAssets; }
+
+
 }
